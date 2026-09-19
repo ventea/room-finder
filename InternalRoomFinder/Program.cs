@@ -14,7 +14,7 @@ while (true)
     Console.WriteLine(new string('-', 45) + "\n");
 
     var currentLocation = PromptForLocation(
-        "Enter your current location (or scan QR): ",
+        "Enter your current location: ",
         "Current location");
     var destination = PromptForLocation(
         "Where do you want to go? ",
