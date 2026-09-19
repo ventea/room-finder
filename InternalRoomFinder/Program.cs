@@ -1,7 +1,7 @@
 using System.Text.Json;
 using InternalRoomFinder;
 
-var navigationApi = NavigationApi.CreateFromConfig("appsettings.json");
+var navigationApi = new NavigationApi();
 
 while (true)
 {
@@ -13,10 +13,10 @@ while (true)
     Console.WriteLine("[SECURITY] Location resolution remains server-side.");
     Console.WriteLine(new string('-', 45) + "\n");
 
-    string currentLocation = PromptAndValidateLocation(
+    var currentLocation = PromptAndValidateLocation(
         "Enter your current location (or scan QR): ",
         "Current location");
-    string destination = PromptAndValidateLocation(
+    var destination = PromptAndValidateLocation(
         "Where do you want to go? ",
         "Destination");
 
@@ -33,7 +33,7 @@ while (true)
     Console.WriteLine("Press any key to send request to server...");
     Console.ReadKey();
 
-    NavigationStep? step = navigationApi.StartNavigation(request);
+    var step = navigationApi.StartNavigation(request);
 
     Console.Clear();
     Console.WriteLine("=============================================");
@@ -67,12 +67,14 @@ while (true)
     }
 }
 
+return;
+
 string PromptAndValidateLocation(string promptMessage, string errorContext)
 {
     while (true)
     {
         Console.Write(promptMessage);
-        string input = Console.ReadLine()?.Trim() ?? string.Empty;
+        var input = Console.ReadLine()?.Trim() ?? string.Empty;
 
         if (string.IsNullOrEmpty(input))
         {
@@ -97,7 +99,7 @@ string PromptAndValidateLocation(string promptMessage, string errorContext)
 
 void ShowWizard(NavigationApi api, NavigationStep firstStep, string destination)
 {
-    NavigationStep? step = firstStep;
+    var step = firstStep;
 
     while (step is not null)
     {

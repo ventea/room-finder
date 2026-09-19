@@ -18,12 +18,12 @@ internal sealed class TopologyStore
             throw new FileNotFoundException($"Configuration file was not found: {filePath}", filePath);
         }
 
-        string jsonString = File.ReadAllText(filePath);
-        ConfigurationRoot config = JsonSerializer.Deserialize<ConfigurationRoot>(jsonString)
-            ?? throw new InvalidDataException("Configuration is empty.");
+        var jsonString = File.ReadAllText(filePath);
+        var config = JsonSerializer.Deserialize<ConfigurationRoot>(jsonString)
+                     ?? throw new InvalidDataException("Configuration is empty.");
 
-        Dictionary<string, CheckpointNode> nodes = BuildNodes(config);
-        Dictionary<string, string> aliases = BuildAliases(config, nodes);
+        var nodes = BuildNodes(config);
+        var aliases = BuildAliases(config, nodes);
         LinkNodes(config, nodes);
 
         _nodes = nodes;
@@ -32,17 +32,12 @@ internal sealed class TopologyStore
 
     public bool ContainsAlias(string alias)
     {
-        if (string.IsNullOrWhiteSpace(alias))
-        {
-            return false;
-        }
-
-        return _normalizedAliasLookup.ContainsKey(NormalizeString(alias));
+        return !string.IsNullOrWhiteSpace(alias) && _normalizedAliasLookup.ContainsKey(NormalizeString(alias));
     }
 
     public CheckpointNode ResolveAlias(string alias)
     {
-        string normalizedKey = NormalizeString(alias);
+        var normalizedKey = NormalizeString(alias);
 
         if (!_normalizedAliasLookup.TryGetValue(normalizedKey, out string? nodeId) ||
             !_nodes.TryGetValue(nodeId, out CheckpointNode? node))
@@ -55,8 +50,8 @@ internal sealed class TopologyStore
 
     private static Dictionary<string, CheckpointNode> BuildNodes(ConfigurationRoot config)
     {
-        List<JsonCheckpoint> checkpoints = config.NetworkTopology
-            ?? throw new InvalidDataException("NetworkTopology is required.");
+        var checkpoints = config.NetworkTopology
+                          ?? throw new InvalidDataException("NetworkTopology is required.");
 
         Dictionary<string, CheckpointNode> nodes = new(StringComparer.Ordinal);
 
@@ -80,13 +75,13 @@ internal sealed class TopologyStore
         ConfigurationRoot config,
         IReadOnlyDictionary<string, CheckpointNode> nodes)
     {
-        Dictionary<string, string> sourceAliases = config.SecureAliasLookup
-            ?? throw new InvalidDataException("SecureAliasLookup is required.");
+        var sourceAliases = config.SecureAliasLookup
+                            ?? throw new InvalidDataException("SecureAliasLookup is required.");
         Dictionary<string, string> aliases = new(StringComparer.Ordinal);
 
-        foreach ((string alias, string nodeId) in sourceAliases)
+        foreach (var (alias, nodeId) in sourceAliases)
         {
-            string normalizedAlias = NormalizeString(alias);
+            var normalizedAlias = NormalizeString(alias);
 
             if (string.IsNullOrEmpty(normalizedAlias))
             {
@@ -111,17 +106,17 @@ internal sealed class TopologyStore
         ConfigurationRoot config,
         IReadOnlyDictionary<string, CheckpointNode> nodes)
     {
-        Dictionary<string, string> instructions = config.SecureInstructions
-            ?? throw new InvalidDataException("SecureInstructions is required.");
+        var instructions = config.SecureInstructions
+                           ?? throw new InvalidDataException("SecureInstructions is required.");
 
-        foreach (JsonCheckpoint checkpoint in config.NetworkTopology!)
+        foreach (var checkpoint in config.NetworkTopology!)
         {
-            CheckpointNode source = nodes[checkpoint.Id!];
+            var source = nodes[checkpoint.Id!];
 
-            foreach (JsonConnection connection in checkpoint.Connections ?? [])
+            foreach (var connection in checkpoint.Connections ?? [])
             {
                 if (string.IsNullOrWhiteSpace(connection.TargetId) ||
-                    !nodes.TryGetValue(connection.TargetId, out CheckpointNode? target))
+                    !nodes.TryGetValue(connection.TargetId, out var target))
                 {
                     throw new InvalidDataException(
                         $"Checkpoint '{checkpoint.Id}' contains an unknown connection target.");
@@ -151,12 +146,12 @@ internal sealed class TopologyStore
             return string.Empty;
         }
 
-        string formD = text.Normalize(NormalizationForm.FormD);
+        var formD = text.Normalize(NormalizationForm.FormD);
         StringBuilder builder = new(formD.Length);
 
-        foreach (char character in formD)
+        foreach (var character in formD)
         {
-            UnicodeCategory category = CharUnicodeInfo.GetUnicodeCategory(character);
+            var category = CharUnicodeInfo.GetUnicodeCategory(character);
 
             if (category is not UnicodeCategory.NonSpacingMark
                 and not UnicodeCategory.SpacingCombiningMark

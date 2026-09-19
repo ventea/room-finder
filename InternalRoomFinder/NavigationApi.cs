@@ -7,30 +7,25 @@ internal sealed class NavigationApi
     private readonly TopologyStore _topologyStore;
     private readonly RoutingService _routingService;
     private readonly Dictionary<string, NavigationSession> _sessions = new(StringComparer.Ordinal);
-    private readonly object _sessionLock = new();
+    private readonly Lock _sessionLock = new();
+    private const string ConfigPath = "appsettings.json";
 
-    public NavigationApi(TopologyStore topologyStore, RoutingService routingService)
+    public NavigationApi()
     {
-        _topologyStore = topologyStore;
-        _routingService = routingService;
+        _topologyStore = new TopologyStore();
+        _topologyStore.LoadFromConfig(ConfigPath);
+        _routingService = new RoutingService();
     }
-
-    public static NavigationApi CreateFromConfig(string filePath)
-    {
-        TopologyStore topologyStore = new();
-        topologyStore.LoadFromConfig(filePath);
-        return new NavigationApi(topologyStore, new RoutingService());
-    }
-
+    
     public bool IsKnownLocation(string query) => _topologyStore.ContainsAlias(query);
 
     public NavigationStep? StartNavigation(NavigationRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        CheckpointNode start = _topologyStore.ResolveAlias(request.CurrentLocationQuery);
-        CheckpointNode target = _topologyStore.ResolveAlias(request.TargetDestinationQuery);
-        List<string>? route = _routingService.FindRoute(start, target);
+        var start = _topologyStore.ResolveAlias(request.CurrentLocationQuery);
+        var target = _topologyStore.ResolveAlias(request.TargetDestinationQuery);
+        var route = _routingService.FindRoute(start, target);
 
         if (route is null)
         {
@@ -46,9 +41,9 @@ internal sealed class NavigationApi
                 false);
         }
 
-        string sessionId = CreateSessionId();
+        var sessionId = CreateSessionId();
         NavigationSession session = new(route);
-        string firstInstruction = session.PendingInstructions.Dequeue();
+        var firstInstruction = session.PendingInstructions.Dequeue();
 
         lock (_sessionLock)
         {
@@ -78,8 +73,8 @@ internal sealed class NavigationApi
                 return null;
             }
 
-            string instruction = session.PendingInstructions.Dequeue();
-            bool hasNext = session.PendingInstructions.Count > 0;
+            var instruction = session.PendingInstructions.Dequeue();
+            var hasNext = session.PendingInstructions.Count > 0;
             session.NextStepNumber++;
 
             if (!hasNext)
