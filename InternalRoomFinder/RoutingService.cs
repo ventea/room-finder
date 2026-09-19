@@ -1,50 +1,57 @@
 namespace InternalRoomFinder;
 
-public class RoutingService
+internal sealed class RoutingService
 {
-    /// <summary>
-    /// Finds the shortest path between two nodes using Breadth-First Search (BFS).
-    /// Returns a secure list of plaintext instructions only, exposing no node or graph structural data.
-    /// </summary>
     public List<string>? FindRoute(CheckpointNode start, CheckpointNode target)
     {
+        ArgumentNullException.ThrowIfNull(start);
+        ArgumentNullException.ThrowIfNull(target);
+
         Queue<CheckpointNode> queue = new();
         HashSet<CheckpointNode> visited = [];
-        Dictionary<CheckpointNode, PathEdge> parentEdge = [];
-        Dictionary<CheckpointNode, CheckpointNode> parentNode = [];
+        Dictionary<CheckpointNode, (CheckpointNode Parent, PathEdge Edge)> parents = [];
 
         queue.Enqueue(start);
         visited.Add(start);
-        bool found = false;
 
         while (queue.Count > 0)
         {
-            var current = queue.Dequeue();
-            if (current == target) { found = true; break; }
+            CheckpointNode current = queue.Dequeue();
 
-            foreach (var edge in current.Connections)
+            if (ReferenceEquals(current, target))
             {
-                if (!visited.Contains(edge.Target))
+                return BuildInstructions(start, target, parents);
+            }
+
+            foreach (PathEdge edge in current.Connections)
+            {
+                if (visited.Add(edge.Target))
                 {
-                    visited.Add(edge.Target);
-                    parentEdge[edge.Target] = edge;
-                    parentNode[edge.Target] = current;
+                    parents[edge.Target] = (current, edge);
                     queue.Enqueue(edge.Target);
                 }
             }
         }
 
-        if (!found) return null;
+        return null;
+    }
 
-        // Reconstruct the path backwards, extracting ONLY the plaintext instruction strings
+    private static List<string> BuildInstructions(
+        CheckpointNode start,
+        CheckpointNode target,
+        IReadOnlyDictionary<CheckpointNode, (CheckpointNode Parent, PathEdge Edge)> parents)
+    {
         List<string> instructions = [];
-        var curr = target;
-        while (curr != start)
+        CheckpointNode current = target;
+
+        while (!ReferenceEquals(current, start))
         {
-            var edge = parentEdge[curr];
-            instructions.Insert(0, edge.Instruction); // Securely isolate the text from the node object
-            curr = parentNode[curr];
+            (CheckpointNode parent, PathEdge edge) = parents[current];
+            instructions.Add(edge.Instruction);
+            current = parent;
         }
+
+        instructions.Reverse();
         return instructions;
     }
 }

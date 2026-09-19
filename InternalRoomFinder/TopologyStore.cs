@@ -4,93 +4,168 @@ using System.Text.Json;
 
 namespace InternalRoomFinder;
 
-public class TopologyStore
+internal sealed class TopologyStore
 {
-    private readonly Dictionary<string, CheckpointNode> _nodes = [];
-    
-    // Secure secondary dictionary for normalized searches (lowercase, no accents)
-    private readonly Dictionary<string, string> _normalizedAliasLookup = new();
-
-    public CheckpointNode? GetById(string id) => _nodes.GetValueOrDefault(id);
-    
-    // SECURE ALIAS RESOLUTION: Fully case and diacritic insensitive
-    public string? ResolveAlias(string alias)
-    {
-        if (string.IsNullOrWhiteSpace(alias)) return null;
-        
-        string normalizedKey = NormalizeString(alias);
-        return _normalizedAliasLookup.GetValueOrDefault(normalizedKey);
-    }
+    private Dictionary<string, CheckpointNode> _nodes = [];
+    private Dictionary<string, string> _normalizedAliasLookup = [];
 
     public void LoadFromConfig(string filePath)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+
         if (!File.Exists(filePath))
         {
-            throw new FileNotFoundException($"Hittade inte konfigurationsfilen: {filePath}");
+            throw new FileNotFoundException($"Configuration file was not found: {filePath}", filePath);
         }
 
         string jsonString = File.ReadAllText(filePath);
-        var config = JsonSerializer.Deserialize<ConfigurationRoot>(jsonString);
+        ConfigurationRoot config = JsonSerializer.Deserialize<ConfigurationRoot>(jsonString)
+            ?? throw new InvalidDataException("Configuration is empty.");
 
-        if (config == null) return;
-        
-        // Build the normalized lookup index in memory at startup strictly on the server
-        _normalizedAliasLookup.Clear();
-        foreach (var kvp in config.SecureAliasLookup)
+        Dictionary<string, CheckpointNode> nodes = BuildNodes(config);
+        Dictionary<string, string> aliases = BuildAliases(config, nodes);
+        LinkNodes(config, nodes);
+
+        _nodes = nodes;
+        _normalizedAliasLookup = aliases;
+    }
+
+    public bool ContainsAlias(string alias)
+    {
+        if (string.IsNullOrWhiteSpace(alias))
         {
-            string normalizedKey = NormalizeString(kvp.Key);
-            _normalizedAliasLookup[normalizedKey] = kvp.Value;
+            return false;
         }
 
-        // Step 1: Create all anonymized nodes
-        foreach (var jsonCp in config.NetworkTopology)
+        return _normalizedAliasLookup.ContainsKey(NormalizeString(alias));
+    }
+
+    public CheckpointNode ResolveAlias(string alias)
+    {
+        string normalizedKey = NormalizeString(alias);
+
+        if (!_normalizedAliasLookup.TryGetValue(normalizedKey, out string? nodeId) ||
+            !_nodes.TryGetValue(nodeId, out CheckpointNode? node))
         {
-            _nodes[jsonCp.Id] = new CheckpointNode { Id = jsonCp.Id };
+            throw new KeyNotFoundException("The requested location does not exist.");
         }
 
-        // Step 2: Link nodes together and inject secure instructions
-        foreach (var jsonCp in config.NetworkTopology)
-        {
-            var sourceNode = _nodes[jsonCp.Id];
+        return node;
+    }
 
-            foreach (var jsonConn in jsonCp.Connections)
+    private static Dictionary<string, CheckpointNode> BuildNodes(ConfigurationRoot config)
+    {
+        List<JsonCheckpoint> checkpoints = config.NetworkTopology
+            ?? throw new InvalidDataException("NetworkTopology is required.");
+
+        Dictionary<string, CheckpointNode> nodes = new(StringComparer.Ordinal);
+
+        foreach (JsonCheckpoint checkpoint in checkpoints)
+        {
+            if (string.IsNullOrWhiteSpace(checkpoint.Id))
             {
-                if (_nodes.TryGetValue(jsonConn.TargetId, out var targetNode))
-                {
-                    string secureInstruction = config.SecureInstructions.GetValueOrDefault(
-                        jsonConn.InstructionId, 
-                        "[KRYPTERAT]"
-                    );
+                throw new InvalidDataException("Every checkpoint must have an ID.");
+            }
 
-                    sourceNode.Connections.Add(new PathEdge
-                    {
-                        Target = targetNode,
-                        Instruction = secureInstruction
-                    });
+            if (!nodes.TryAdd(checkpoint.Id, new CheckpointNode { Id = checkpoint.Id }))
+            {
+                throw new InvalidDataException($"Duplicate checkpoint ID: {checkpoint.Id}");
+            }
+        }
+
+        return nodes;
+    }
+
+    private static Dictionary<string, string> BuildAliases(
+        ConfigurationRoot config,
+        IReadOnlyDictionary<string, CheckpointNode> nodes)
+    {
+        Dictionary<string, string> sourceAliases = config.SecureAliasLookup
+            ?? throw new InvalidDataException("SecureAliasLookup is required.");
+        Dictionary<string, string> aliases = new(StringComparer.Ordinal);
+
+        foreach ((string alias, string nodeId) in sourceAliases)
+        {
+            string normalizedAlias = NormalizeString(alias);
+
+            if (string.IsNullOrEmpty(normalizedAlias))
+            {
+                throw new InvalidDataException("Aliases must contain searchable text.");
+            }
+
+            if (string.IsNullOrWhiteSpace(nodeId) || !nodes.ContainsKey(nodeId))
+            {
+                throw new InvalidDataException($"Alias '{alias}' references an unknown checkpoint.");
+            }
+
+            if (!aliases.TryAdd(normalizedAlias, nodeId))
+            {
+                throw new InvalidDataException($"Aliases collide after normalization: '{alias}'.");
+            }
+        }
+
+        return aliases;
+    }
+
+    private static void LinkNodes(
+        ConfigurationRoot config,
+        IReadOnlyDictionary<string, CheckpointNode> nodes)
+    {
+        Dictionary<string, string> instructions = config.SecureInstructions
+            ?? throw new InvalidDataException("SecureInstructions is required.");
+
+        foreach (JsonCheckpoint checkpoint in config.NetworkTopology!)
+        {
+            CheckpointNode source = nodes[checkpoint.Id!];
+
+            foreach (JsonConnection connection in checkpoint.Connections ?? [])
+            {
+                if (string.IsNullOrWhiteSpace(connection.TargetId) ||
+                    !nodes.TryGetValue(connection.TargetId, out CheckpointNode? target))
+                {
+                    throw new InvalidDataException(
+                        $"Checkpoint '{checkpoint.Id}' contains an unknown connection target.");
                 }
+
+                if (string.IsNullOrWhiteSpace(connection.InstructionId) ||
+                    !instructions.TryGetValue(connection.InstructionId, out string? instruction) ||
+                    string.IsNullOrWhiteSpace(instruction))
+                {
+                    throw new InvalidDataException(
+                        $"Connection from '{checkpoint.Id}' has a missing instruction.");
+                }
+
+                source.Connections.Add(new PathEdge
+                {
+                    Target = target,
+                    Instruction = instruction
+                });
             }
         }
     }
 
     private static string NormalizeString(string text)
     {
-        if (string.IsNullOrWhiteSpace(text)) return string.Empty;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return string.Empty;
+        }
 
         string formD = text.Normalize(NormalizationForm.FormD);
-        StringBuilder sb = new();
+        StringBuilder builder = new(formD.Length);
 
-        foreach (char ch in formD)
+        foreach (char character in formD)
         {
-            UnicodeCategory category = CharUnicodeInfo.GetUnicodeCategory(ch);
+            UnicodeCategory category = CharUnicodeInfo.GetUnicodeCategory(character);
 
-            if (category != UnicodeCategory.NonSpacingMark &&
-                category != UnicodeCategory.SpacingCombiningMark &&
-                category != UnicodeCategory.EnclosingMark)
+            if (category is not UnicodeCategory.NonSpacingMark
+                and not UnicodeCategory.SpacingCombiningMark
+                and not UnicodeCategory.EnclosingMark)
             {
-                sb.Append(ch);
+                builder.Append(character);
             }
         }
 
-        return sb.ToString().Normalize(NormalizationForm.FormC).ToLowerInvariant();
+        return builder.ToString().Normalize(NormalizationForm.FormC).ToLowerInvariant();
     }
 }

@@ -1,32 +1,42 @@
 namespace InternalRoomFinder;
 
-public class CheckpointNode
+internal sealed class CheckpointNode
 {
-    public string Id { get; set; } = string.Empty;
-    public List<PathEdge> Connections { get; set; } = [];
+    public required string Id { get; init; }
+    public List<PathEdge> Connections { get; } = [];
 }
 
-public class PathEdge
+internal sealed class PathEdge
 {
-    public CheckpointNode Target { get; set; } = null!;
-    public string Instruction { get; set; } = string.Empty;
+    public required CheckpointNode Target { get; init; }
+    public required string Instruction { get; init; }
 }
 
-public class ConfigurationRoot
+internal sealed class ConfigurationRoot
 {
-    public List<JsonCheckpoint> NetworkTopology { get; set; } = [];
-    public Dictionary<string, string> SecureInstructions { get; set; } = [];
-    public Dictionary<string, string> SecureAliasLookup { get; set; } = [];
+    public List<JsonCheckpoint>? NetworkTopology { get; init; }
+    public Dictionary<string, string>? SecureInstructions { get; init; }
+    public Dictionary<string, string>? SecureAliasLookup { get; init; }
 }
 
-public class JsonCheckpoint
+internal sealed class JsonCheckpoint
 {
-    public string Id { get; set; } = string.Empty;
-    public List<JsonConnection> Connections { get; set; } = [];
+    public string? Id { get; init; }
+    public List<JsonConnection>? Connections { get; init; }
 }
 
-public class JsonConnection
+internal sealed class JsonConnection
 {
-    public string TargetId { get; set; } = string.Empty;
-    public string InstructionId { get; set; } = string.Empty;
+    public string? TargetId { get; init; }
+    public string? InstructionId { get; init; }
 }
+
+public sealed record NavigationRequest(
+    string CurrentLocationQuery,
+    string TargetDestinationQuery);
+
+public sealed record NavigationStep(
+    string SessionId,
+    string Instruction,
+    int StepNumber,
+    bool HasNext);
