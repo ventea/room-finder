@@ -12,11 +12,14 @@ while (true)
     Console.WriteLine("      INTERNAL ROOM-FINDER SERVICE MVP       ");
     Console.WriteLine("=============================================");
     Console.WriteLine("[SECURITY STATUS] User Authenticated via Corporate SSO.\n");
-    Console.WriteLine("Tillgängliga platser:");
-    Console.WriteLine("- Huvudentrén / Viggen / Kaffestationen / Lunchrummet / Gripen\n");
+    
+    // DYNAMIC MENU: Fetch and display available locations directly from the JSON lookup
+    Console.WriteLine("Tillgängliga platser att söka efter:");
+    string availablePlaces = string.Join(" | ", store.GetAvailableNames());
+    Console.WriteLine(availablePlaces);
+    Console.WriteLine(new string('-', 45) + "\n");
 
-
-    // Get Start Location (Simulating scanning a QR code or selecting a starting point)
+    // Get Start Location
     Console.Write("Ange din nuvarande plats (eller scanna QR): ");
     string? startInput = Console.ReadLine()?.Trim();
     
@@ -31,7 +34,7 @@ while (true)
         continue;
     }
 
-    // SERVER-SIDE RESOLUTION: Resolve human-readable names to secure anonymous hashes
+    // SERVER-SIDE RESOLUTION
     string? startNodeId = store.ResolveAlias(startInput);
     string? destNodeId = store.ResolveAlias(destInput);
 

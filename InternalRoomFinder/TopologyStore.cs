@@ -55,4 +55,7 @@ public class TopologyStore
             }
         }
     }
+    
+    // Hämtar alla tillgängliga rumsnamn sorterade i bokstavsordning för menyn
+    public IEnumerable<string> GetAvailableNames() => _aliasLookup.Keys.OrderBy(k => k);
 }
