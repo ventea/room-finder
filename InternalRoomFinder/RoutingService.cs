@@ -4,9 +4,9 @@ public class RoutingService
 {
     /// <summary>
     /// Finds the shortest path between two nodes using Breadth-First Search (BFS).
-    /// Returns null if no route can be found.
+    /// Returns a secure list of plaintext instructions only, exposing no node or graph structural data.
     /// </summary>
-    public List<PathEdge>? FindRoute(CheckpointNode start, CheckpointNode target)
+    public List<string>? FindRoute(CheckpointNode start, CheckpointNode target)
     {
         Queue<CheckpointNode> queue = new();
         HashSet<CheckpointNode> visited = [];
@@ -36,15 +36,15 @@ public class RoutingService
 
         if (!found) return null;
 
-        // Reconstruct the path backwards from the destination to the start
-        List<PathEdge> route = [];
+        // Reconstruct the path backwards, extracting ONLY the plaintext instruction strings
+        List<string> instructions = [];
         var curr = target;
         while (curr != start)
         {
             var edge = parentEdge[curr];
-            route.Insert(0, edge); // Insert at index 0 to reverse the order into a forward path
+            instructions.Insert(0, edge.Instruction); // Securely isolate the text from the node object
             curr = parentNode[curr];
         }
-        return route;
+        return instructions;
     }
 }

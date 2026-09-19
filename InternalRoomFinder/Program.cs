@@ -15,7 +15,6 @@ while (true)
     Console.WriteLine("[SECURITY] Zero room or ID data exposed to the client.");
     Console.WriteLine(new string('-', 45) + "\n");
 
-    // UX & SECURITY: Each prompt loops independently until valid.
     var (startInput, startNode) = PromptAndValidateLocation("Enter your current location (or scan QR): ", "Current location");
     var (destInput, destinationNode) = PromptAndValidateLocation("Where do you want to go? ", "Destination");
 
@@ -36,12 +35,8 @@ while (true)
     Console.WriteLine("Press any key to send request to server...");
     Console.ReadKey();
 
-    // SERVER-SIDE PROCESSING (Behind the corporate firewall)
-    string? startNodeId = store.ResolveAlias(startInput);
-    string? destNodeId = store.ResolveAlias(destInput);
-
-    // Server executes the graph algorithm
-    List<PathEdge>? route = routingService.FindRoute(startNode, destinationNode);
+    // SECURE: Server executes algorithm and returns ONLY a list of strings
+    List<string>? route = routingService.FindRoute(startNode, destinationNode);
 
     // VISUALIZATION: Secure API Response Payload
     Console.Clear();
@@ -62,7 +57,7 @@ while (true)
         for (int i = 0; i < route.Count; i++)
         {
             string comma = (i == route.Count - 1) ? "" : ",";
-            Console.WriteLine($"      {{ \"step\": {i + 1}, \"text\": \"{route[i].Instruction}\" }}{comma}");
+            Console.WriteLine($"      {{ \"step\": {i + 1}, \"text\": \"{route[i]}\" }}{comma}");
         }
         
         Console.WriteLine("    ]");
@@ -77,7 +72,7 @@ while (true)
         int currentStep = 1;
         int totalSteps = route.Count;
 
-        foreach (var edge in route)
+        foreach (var instruction in route)
         {
             Console.Clear();
             Console.WriteLine("=============================================");
@@ -86,7 +81,7 @@ while (true)
             Console.WriteLine($"Progress: [Step {currentStep} of {totalSteps}]\n");
             
             // Display exactly ONE instruction at a time to prevent layout extraction
-            Console.WriteLine($">> INSTRUCTION: {edge.Instruction}");
+            Console.WriteLine($">> INSTRUCTION: {instruction}");
             
             currentStep++;
 
