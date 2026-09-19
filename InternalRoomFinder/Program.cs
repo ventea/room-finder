@@ -19,36 +19,11 @@ while (true)
     Console.WriteLine(availablePlaces);
     Console.WriteLine(new string('-', 45) + "\n");
 
-    // Get Start Location
-    Console.Write("Ange din nuvarande plats (eller scanna QR): ");
-    string? startInput = Console.ReadLine()?.Trim();
-    
-    // Get Destination
-    Console.Write("Var vill du gå? ");
-    string? destInput = Console.ReadLine()?.Trim();
+    // REFACTOR: Reuse the validation logic for both start and destination
+    var (startInput, startNode) = PromptAndValidateLocation("Ange din nuvarande plats (eller scanna QR): ", "Nuvarande plats");
+    var (destInput, destinationNode) = PromptAndValidateLocation("Var vill du gå? ", "Destinationen");
 
-    if (string.IsNullOrEmpty(startInput) || string.IsNullOrEmpty(destInput))
-    {
-        Console.WriteLine("\n[ERROR] Start och mål får inte vara tomma. Tryck på valfri tangent...");
-        Console.ReadKey();
-        continue;
-    }
-
-    // SERVER-SIDE RESOLUTION
-    string? startNodeId = store.ResolveAlias(startInput);
-    string? destNodeId = store.ResolveAlias(destInput);
-
-    CheckpointNode? startNode = startNodeId != null ? store.GetById(startNodeId) : null;
-    CheckpointNode? destinationNode = destNodeId != null ? store.GetById(destNodeId) : null;
-
-    if (startNode is null || destinationNode is null)
-    {
-        Console.WriteLine("\n[ERROR] Kunde inte hitta platserna. Kontrollera stavningen.");
-        Console.WriteLine("Tryck på valfri tangent för att försöka igen...");
-        Console.ReadKey();
-        continue;
-    }
-
+    // SERVER-SIDE PROCESSING (Simulating the secure API boundary)
     Console.Clear();
     Console.WriteLine("=== SYSTEM SECURITY LOGS ===");
     Console.WriteLine($"[LOG] Resolving '{startInput}' -> Anonymized Internal ID: {startNode.Id}");
@@ -95,5 +70,31 @@ while (true)
     if (Console.ReadKey().Key == ConsoleKey.Q)
     {
         break;
+    }
+}
+
+// 3. HELPER METHOD: Reusable input and validation loop
+(string InputText, CheckpointNode Node) PromptAndValidateLocation(string promptMessage, string errorContext)
+{
+    while (true)
+    {
+        Console.Write(promptMessage);
+        string input = Console.ReadLine()?.Trim() ?? string.Empty;
+
+        if (string.IsNullOrEmpty(input))
+        {
+            Console.WriteLine($"[ERROR] {errorContext} får inte vara tom.\n");
+            continue;
+        }
+
+        string? nodeId = store.ResolveAlias(input);
+        CheckpointNode? node = nodeId != null ? store.GetById(nodeId) : null;
+
+        if (node is not null)
+        {
+            return (input, node); // Return a tuple with both the human name and the resolved node object
+        }
+
+        Console.WriteLine("[ERROR] Kunde inte hitta platsen. Kontrollera stavningen och försök igen.\n");
     }
 }
