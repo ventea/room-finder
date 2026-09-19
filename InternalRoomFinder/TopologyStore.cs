@@ -5,8 +5,12 @@ namespace InternalRoomFinder;
 public class TopologyStore
 {
     private readonly Dictionary<string, CheckpointNode> _nodes = [];
+    private Dictionary<string, string> _aliasLookup = [];
 
     public CheckpointNode? GetById(string id) => _nodes.GetValueOrDefault(id);
+    
+    // Säkert uppslag: Användaren söker på "Gripen", servern returnerar "nd_1c2b"
+    public string? ResolveAlias(string alias) => _aliasLookup.GetValueOrDefault(alias);
 
     public void LoadFromConfig(string filePath)
     {
@@ -16,22 +20,20 @@ public class TopologyStore
         }
 
         string jsonString = File.ReadAllText(filePath);
-        var jsonCheckpoints = JsonSerializer.Deserialize<List<JsonCheckpoint>>(jsonString);
+        var config = JsonSerializer.Deserialize<ConfigurationRoot>(jsonString);
 
-        if (jsonCheckpoints == null) return;
+        if (config == null) return;
 
-        // Step 1: Create all nodes first (so they exist in memory)
-        foreach (var jsonCp in jsonCheckpoints)
+        _aliasLookup = config.SecureAliasLookup;
+
+        // Step 1: Create all anonymized nodes
+        foreach (var jsonCp in config.NetworkTopology)
         {
-            _nodes[jsonCp.Id] = new CheckpointNode 
-            { 
-                Id = jsonCp.Id, 
-                Name = jsonCp.Name 
-            };
+            _nodes[jsonCp.Id] = new CheckpointNode { Id = jsonCp.Id };
         }
 
-        // Step 2: Connect the nodes (create edges based on TargetId)
-        foreach (var jsonCp in jsonCheckpoints)
+        // Step 2: Link nodes and inject instructions
+        foreach (var jsonCp in config.NetworkTopology)
         {
             var sourceNode = _nodes[jsonCp.Id];
 
@@ -39,10 +41,15 @@ public class TopologyStore
             {
                 if (_nodes.TryGetValue(jsonConn.TargetId, out var targetNode))
                 {
+                    string secureInstruction = config.SecureInstructions.GetValueOrDefault(
+                        jsonConn.InstructionId, 
+                        "[KRYPTERAT]"
+                    );
+
                     sourceNode.Connections.Add(new PathEdge
                     {
                         Target = targetNode,
-                        Instruction = jsonConn.Instruction
+                        Instruction = secureInstruction
                     });
                 }
             }
