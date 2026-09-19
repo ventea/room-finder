@@ -17,11 +17,11 @@ internal sealed class NavigationApi
         _routingService = new RoutingService();
     }
     
-    public bool IsKnownLocation(string query) => _topologyStore.ContainsAlias(query);
-
     public NavigationStep? StartNavigation(NavigationRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
+        ValidateQuery(request.CurrentLocationQuery, nameof(request.CurrentLocationQuery));
+        ValidateQuery(request.TargetDestinationQuery, nameof(request.TargetDestinationQuery));
 
         var start = _topologyStore.ResolveAlias(request.CurrentLocationQuery);
         var target = _topologyStore.ResolveAlias(request.TargetDestinationQuery);
@@ -55,6 +55,18 @@ internal sealed class NavigationApi
             firstInstruction,
             session.NextStepNumber++,
             session.PendingInstructions.Count > 0);
+    }
+
+    private static void ValidateQuery(string query, string parameterName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(query, parameterName);
+
+        if (query.Length > 200)
+        {
+            throw new ArgumentOutOfRangeException(
+                parameterName,
+                "Location queries cannot exceed 200 characters.");
+        }
     }
 
     public NavigationStep? GetNextInstruction(string sessionId, int stepNumber)

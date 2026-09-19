@@ -30,11 +30,6 @@ internal sealed class TopologyStore
         _normalizedAliasLookup = aliases;
     }
 
-    public bool ContainsAlias(string alias)
-    {
-        return !string.IsNullOrWhiteSpace(alias) && _normalizedAliasLookup.ContainsKey(NormalizeString(alias));
-    }
-
     public CheckpointNode ResolveAlias(string alias)
     {
         var normalizedKey = NormalizeString(alias);

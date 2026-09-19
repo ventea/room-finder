@@ -13,10 +13,10 @@ while (true)
     Console.WriteLine("[SECURITY] Location resolution remains server-side.");
     Console.WriteLine(new string('-', 45) + "\n");
 
-    var currentLocation = PromptAndValidateLocation(
+    var currentLocation = PromptForLocation(
         "Enter your current location (or scan QR): ",
         "Current location");
-    var destination = PromptAndValidateLocation(
+    var destination = PromptForLocation(
         "Where do you want to go? ",
         "Destination");
 
@@ -33,7 +33,20 @@ while (true)
     Console.WriteLine("Press any key to send request to server...");
     Console.ReadKey();
 
-    var step = navigationApi.StartNavigation(request);
+    NavigationStep? step;
+
+    try
+    {
+        step = navigationApi.StartNavigation(request);
+    }
+    catch (KeyNotFoundException)
+    {
+        Console.WriteLine("  { \"status\": \"Error\", \"code\": \"LOCATION_NOT_FOUND\" }");
+        Console.WriteLine(new string('-', 45));
+        Console.WriteLine("\nPress any key to try again...");
+        Console.ReadKey();
+        continue;
+    }
 
     Console.Clear();
     Console.WriteLine("=============================================");
@@ -69,7 +82,7 @@ while (true)
 
 return;
 
-string PromptAndValidateLocation(string promptMessage, string errorContext)
+string PromptForLocation(string promptMessage, string errorContext)
 {
     while (true)
     {
@@ -88,12 +101,7 @@ string PromptAndValidateLocation(string promptMessage, string errorContext)
             continue;
         }
 
-        if (navigationApi.IsKnownLocation(input))
-        {
-            return input;
-        }
-
-        Console.WriteLine("[ERROR] Location not found. Please check your spelling and try again.\n");
+        return input;
     }
 }
 
