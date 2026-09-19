@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RoomFinder", "RoomFinder.csproj", "{7EEFF840-F141-44DB-A299-542D81F2CF86}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InternalRoomFinder", "InternalRoomFinder.csproj", "{7EEFF840-F141-44DB-A299-542D81F2CF86}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
